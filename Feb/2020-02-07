@@ -1,0 +1,167 @@
+딥다이브~
+# 직렬화, 역직렬화
+
+---
+
+- 직렬화 : 자바에서 사용되는 객체를 바이트 스트림 형태로 변환하는 포맷 변환 기술입니다.
+    - 바이트 스트림 :
+        - 스트림은 클라이언트나 서버 간에 출발지, 목적지로 입출력하기 위한 데이터가 흐르는 통로입니다. 
+        자바는 스트림의 기본 단위가 바이트이기 때문에 바이트 스트림으로 전송합니다.
+
+- 역직렬화 : 직렬화의 반대 개념으로, 바이트 형태로 변환된 데이터를 원래대로 객체로 변환하는 기술입니다.
+
+
+1. JVM의 힙 혹은 스택 메모리에 상주하고 있는 객체 데이터를 직렬화를 통해 바이트 형태로 변환
+2. 데이터 베이스나 파일 같은 외부 저장소에 저장
+3. 다른 컴퓨터에서 해당 파일을 가져와 역직렬화를 통해 객체로 변환
+4. 변환된 객체는 JVM 메모리에 적재
+
+# 사용하는 이유와 언제 사용되는가?
+
+---
+
+요약 : 객체를 저장하거나 전송하기 위해 바이트 형태로 변환해야 하는 모든 상황에서 사용
+
+1. 객체의 영속성 보장
+    1. 직렬화를 사용하면 휘발성 있는 캐싱 데이터를 영구 저장할 수 있습니다.
+    2. 프로그램 종료 후에도 객체의 상태를 유지하고 싶을 때 사용합니다.
+    
+2. 네트워크 전송
+    1. 객체를 다른 서버나 시스템으로 전송할 때 변환이 필요합니다.
+    2. 네트워크로는 객체를 직접 전송할 수 없습니다.
+
+1. 서블릿 세션
+    1. 단순히 세션 운용에는 필요하지 않지만 세션 데이터 저장, 공유가 필요할 때 사용합니다.
+
+1. 분산 시스템
+    1. 원격 메서드 호출(RMI) 등에서 객체를 전송할 때 사용합니다.(최근에는 소켓 써서 안씁니다.)
+    
+        - 원격 메서드 호출 (Remote Method Invocation) :
+        원격 시스템 간의 메시지 교환을 위해 사용하는 기술
+
+그럼 JSON이나 CSV를 사용하면 되는거 아닌가요? (**맞습니다**)
+
+# 직렬화의 장점
+
+---
+
+- 직렬화는 자바 고유 기술인만큼 자바 개발에 최적화 되어있습니다.
+
+- 자바의 모든 객체 타입 지원합니다.
+    - 기본형부터 사용자 정의 클래스까지 가능합니다.
+
+# 직렬화의 단점
+
+---
+
+- 직렬화는 용량이 큽니다.
+    - 데이터 값, 타입 정보, 클래스 메타 정보까지 포함하기에 용량이 큽니다.
+
+- 신뢰할 수 없는 출처의 데이터 역직렬화는 위험합니다.
+    - 객체 그래프가 역직렬화할 때 classpath 안에 있는 어떤 타입의 객체든 만들어내는데, 이때 해당 타입 객체 안의 모든 코드를 수행할 수 있게 됩니다. 즉 코드 전체가 공격 범위에 들어가게 됩니다.
+        - classpath : Java 프로그램이 실행되거나 컴파일될 때 참조할 클래스 파일들의 위치를 지정하는 경로
+- 클래스 캡슐화가 깨집니다.
+    - private 멤버가 있어도 직렬화를 하게 되면 외부로 노출됩니다. 하나의 공개 API가 된다고 생각하면 됩니다.
+
+# 사용법 - 가볍게 예시
+
+---
+
+```
+import java.io.Serializable;
+
+class Customer implements Serializable {
+    int id; // 고객 아이디
+    String name; // 고객 닉네임
+    String password; // 고객 비밀번호
+    int age; // 고객 나이
+
+    public Customer(int id, String name, String password, int age) {
+        this.id = id;
+        this.name = name;
+        this.password = password;
+        this.age = age;
+    }
+
+    @Override
+    public String toString() {
+        return "Customer{" +
+                "id=" + id +
+                ", password='" + password + '\'' +
+                ", name='" + name + '\'' +
+                ", age=" + age +
+                '}';
+    }
+}
+```
+
+- 직렬화하기 위해서 java.io.Serializable 인터페이스를 implements 해야합니다.
+
+---
+
+```
+public static void main(String[] args) {
+    // 직렬화할 고객 객체
+    Customer customer = new Customer(1, "홍길동", "123123", 40);
+
+    // 외부 파일명
+    String fileName = "Customer.ser";
+
+    // 파일 스트림 객체 생성 (try with resource)
+    try (
+            FileOutputStream fos = new FileOutputStream(fileName);
+            ObjectOutputStream out = new ObjectOutputStream(fos)
+    ) {
+        // 직렬화 가능 객체를 바이트 스트림으로 변환하고 파일에 저장
+        out.writeObject(customer);
+
+    } catch (IOException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+- 직렬화에는 ObjectOutputStream을 사용합니다.
+- 코드를 실행하면 직렬화된 Customer.ser 파일이 생성됩니다.
+
+![image.png](attachment:f56842a1-2649-44c1-b3e8-8fc224ff4ae1:image.png)
+
+- writeObject는 기본적으로 모든 요소에 대해 자동 직렬화합니다. 다만, 직렬화를 선택적으로 조작할 수도 있습니다.
+
+---
+
+```
+public static void main(String[] args) {
+    // 외부 파일명
+    String fileName = "Customer.ser";
+
+    // 파일 스트림 객체 생성 (try with resource)
+    try(
+            FileInputStream fis = new FileInputStream(fileName);
+            ObjectInputStream in = new ObjectInputStream(fis)
+    ) {
+        // 바이트 스트림을 다시 자바 객체로 변환 (이때 캐스팅이 필요)
+        Customer deserializedCustomer = (Customer) in.readObject();
+        System.out.println(deserializedCustomer);
+
+    } catch (IOException | ClassNotFoundException e) {
+        e.printStackTrace();
+    }
+}
+```
+
+- 역직렬화에는 ObjectInputStream을 사용합니다.
+- 직렬화된 외부 파일만 있으면 생성자로 객체 초기화 없이 바로 객체에 정보를 가져와 인스턴스화하여 사용할 수 있습니다.
+
+![image.png](attachment:b733d4c0-cdb0-43b4-a52e-7b414c9d1c3e:image.png)
+
+- readObject도 기본적으로 모든 요소에 대해 자동 역직렬화합니다. 다만, 역직렬화를 선택적으로 조작할 수도 있습니다.
+
+---
+
+### 여러 개의 객체를 직렬화하고 역직렬화할 때 주의할 점
+
+- 역직렬화할 때는 직렬화할 때의 순서와 일치해야 합니다.
+    - 예를들어 객체 customer1, customer2, customer3 순서로 직렬화 했다면, 역직렬화 할 때도 customer1, customer2, customer3 의 순서로 받아야 합니다.
+    
+    → 그래서 ArrayList와 같은 컬렉션에 저장해서 관리 하는것이 좋다고 합니다.
