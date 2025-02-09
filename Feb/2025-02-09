@@ -1,0 +1,135 @@
+과제 피드백에서 switch 문의 확장성에 대해서 고민해야 했음
+
+
+
+기존 코드
+
+ private void processRandomEvent() {
+        if (random.nextInt(100) < Constants.EVENT_TRIGGER_CHANCE) {
+            int eventType = random.nextInt(6);
+            switch (eventType) {
+                case 0:
+                    System.out.println("\n[이벤트] 축제가 열렸습니다! 행복도가 증가합니다.");
+                    city.addHappiness(Constants.FESTIVAL_HAPPINESS);
+                    break;
+                case 1:
+                    System.out.println("\n[이벤트] 환경 캠페인으로 공해가 감소했습니다!");
+                    city.addPollution(Constants.ENVIRONMENT_CAMPAIGN);
+                    break;
+                case 2:
+                    int bonus = random.nextInt(1000) + 500;
+                    System.out.printf("\n[이벤트] 국가 보조금 %,d원을 받았습니다!\n", bonus);
+                    city.addMoney(bonus);
+                    break;
+                case 3:
+                    System.out.println("\n[이벤트] 자연재해가 발생했습니다! 행복도와 자금이 감소합니다.");
+                    city.addHappiness(Constants.DISASTER_HAPPINESS_PENALTY);
+                    city.addMoney(Constants.DISASTER_MONEY_PENALTY);
+                    break;
+                case 4:
+                    System.out.println("\n[이벤트] 기업 투자 유치! 고용이 증가합니다.");
+                    city.addEmployment(Constants.CORPORATE_INVESTMENT_EMPLOYMENT);
+                    city.addMoney(Constants.CORPORATE_INVESTMENT_MONEY);
+                    break;
+                case 5:
+                    System.out.println("\n[이벤트] 경제 불황! 세수가 감소합니다.");
+                    city.addMoney(Constants.ECONOMIC_RECESSION_MONEY);
+                    city.addEmployment(Constants.ECONOMIC_RECESSION_EMPLOYMENT);
+                    break;
+            }
+        }
+    }
+
+이 코드는 새로운 이벤트를 추가하거나 기존 이벤트를 삭제해야할 때 번거로울 수 있음
+
+switch문을 대체할 방법을 조원들과 찾다가 enum을 알게 되었음
+
+
+
+enum의 핵심은 이러한 상수를 단순히 정수로 치부하지말고 객체 지향적으로 객체화해서 관리하자는 취지로
+
+자바의 enum은 인터페이스와 같이 독립된 특수한 클래스로 구분됨.
+
+
+
+enum 매핑 기능을 확장하여, 상수 값을 넘어서 상수 메소드로서 이용이 가능함. 이 특성을 이용하여 코드를 새롭게 바꾸었음
+
+새롭게 변경된 코드
+
+public enum EventManager {
+    FESTIVAL("축제가 열렸습니다! 행복도가 증가합니다.") {
+        @Override
+        public void eventEffect(City city) {
+            city.addHappiness(Constants.FESTIVAL_HAPPINESS);
+        }
+    },
+
+    Environment ("환경 캠페인으로 공해가 감소했습니다.") {
+        @Override
+        public void eventEffect(City city) {
+             city.addPollution(Constants.ENVIRONMENT_CAMPAIGN);
+        }
+    },
+
+    GOVERNMENT_SUPPLY ("국가 보조금을 받았습니다") {
+        @Override
+        public void eventEffect(City city) {
+            int bonus = (int)(Math.random() * 1000 ) + 500;
+            ThreadedText.printText(String.format("\n[이벤트] 국가 보조금 %,d원을 받았습니다!\n", bonus));
+            city.addMoney(bonus);
+        }
+    },
+
+    NATURAL_DISASTER("자연재해가 발생했습니다! 행복도와 자금이 감소합니다.") {
+        @Override
+        public void eventEffect(City city) {
+            city.addHappiness(Constants.DISASTER_HAPPINESS_PENALTY);
+            city.addMoney(Constants.DISASTER_MONEY_PENALTY);
+        }
+    },
+
+    CORPORATE_INVESTMENT("기업 투자 유치! 고용이 증가합니다.") {
+        @Override
+        public void eventEffect(City city) {
+            city.addEmployment(Constants.CORPORATE_INVESTMENT_EMPLOYMENT);
+            city.addMoney(Constants.CORPORATE_INVESTMENT_MONEY);
+        }
+    },
+
+    ECONOMIC_RECESSION("경제 불황! 세수가 감소합니다.") {
+        @Override
+        public void eventEffect (City city) {
+            city.addMoney(Constants.ECONOMIC_RECESSION_MONEY);
+            city.addEmployment(Constants.ECONOMIC_RECESSION_EMPLOYMENT);
+        }
+    };
+
+    private final String script;
+
+    EventManager(String script) {
+        this.script = script;
+    }
+
+    public String getScript() {
+        return script;
+    }
+
+    public abstract void eventEffect(City city);
+
+    public static EventManager getRandomEvent() {
+        EventManager[] events = values();
+        return events[(int)(Math.random() * events.length)];
+    }
+}
+
+ private void processRandomEvent() {
+        if (random.nextInt(100) < Constants.EVENT_TRIGGER_CHANCE) {
+            EventManager event = EventManager.getRandomEvent();
+            ThreadedText.printText("\n[이벤트] " + event.getScript());
+            event.eventEffect(city);
+        }
+    }
+
+새롭게 EventManager를 만들고 기존에 있던 processRandomEvent를 위와 같이 바꾸었음. 이제는 새로운 이벤트를 추가하거나 삭제할 때
+
+enum만 수정해주면 됨
